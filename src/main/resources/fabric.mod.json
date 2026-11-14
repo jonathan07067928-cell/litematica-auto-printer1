@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "litematica_auto_printer",
+  "version": "${version}",
+  "name": "Litematica Auto Printer",
+  "description": "Builds loaded Litematica schematics using normal, vanilla block interactions.",
+  "authors": [ "You" ],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "main": [ "com.autoprinter.LitematicaAutoPrinter" ],
+    "client": [ "com.autoprinter.LitematicaAutoPrinterClient" ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "litematica": "*",
+    "malilib": "*"
+  }
+}
