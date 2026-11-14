@@ -11,7 +11,7 @@ base {
 }
 
 repositories {
-    // Modrinth Maven: used from Batch 4 onwards to compile against Litematica / MaLiLib.
+    // Modrinth Maven: lets us compile against Litematica / MaLiLib.
     exclusiveContent {
         forRepository {
             maven {
@@ -31,6 +31,10 @@ dependencies {
     // No "mappings" line and no "mod*" configurations: 26.1+ is unobfuscated.
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    // compileOnly = needed to compile, NOT bundled into our jar.
+    compileOnly "maven.modrinth:litematica:${project.litematica_version}"
+    compileOnly "maven.modrinth:malilib:${project.malilib_version}"
 }
 
 processResources {

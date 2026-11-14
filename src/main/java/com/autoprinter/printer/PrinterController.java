@@ -2,18 +2,25 @@ package com.autoprinter.printer;
 
 import com.autoprinter.config.ConfigManager;
 import com.autoprinter.config.PrinterConfig;
+import com.autoprinter.integration.SchematicAccess;
+import com.autoprinter.integration.SchematicProvider;
+import com.autoprinter.integration.SchematicScanner;
+import com.autoprinter.util.ChatUtil;
+import net.minecraft.client.Minecraft;
 
 /**
- * Owns the printer's on/off/paused state. The actual placement work is added
- * to this class in a later batch; this batch provides the state machine that
- * keybinds, the GUI and the HUD all talk to.
+ * Owns the printer's state. This batch adds the connection to Litematica and a
+ * once-per-second scan of the area around the player. Actual block placement
+ * is added in the next batch.
  */
 public final class PrinterController {
 
     public enum Status {
         DISABLED("Disabled"),
-        IDLE("Idle"),
-        PAUSED("Paused");
+        READY("Ready"),
+        PAUSED("Paused"),
+        NO_LITEMATICA("Litematica missing"),
+        NO_SCHEMATIC("No schematic loaded");
 
         private final String label;
 
@@ -26,11 +33,21 @@ public final class PrinterController {
         }
     }
 
-    private final ConfigManager configManager;
-    private boolean paused;
+    private static final int SCAN_INTERVAL_TICKS = 20;
 
-    public PrinterController(ConfigManager configManager) {
+    private final ConfigManager configManager;
+    private final SchematicProvider schematics;
+
+    private boolean paused;
+    private Status environmentStatus = Status.READY;
+    private Status lastNotified;
+    private int tickCounter;
+    private int nearbyMissing;
+    private String schematicName = "(none)";
+
+    public PrinterController(ConfigManager configManager, SchematicProvider schematics) {
         this.configManager = configManager;
+        this.schematics = schematics;
     }
 
     private PrinterConfig config() {
@@ -49,13 +66,26 @@ public final class PrinterController {
         if (!isEnabled()) {
             return Status.DISABLED;
         }
-        return paused ? Status.PAUSED : Status.IDLE;
+        if (paused) {
+            return Status.PAUSED;
+        }
+        return environmentStatus;
+    }
+
+    /** Missing blocks within a few blocks of the player, refreshed about once per second. */
+    public int getNearbyMissing() {
+        return nearbyMissing;
+    }
+
+    public String getSchematicName() {
+        return schematicName;
     }
 
     public void setEnabled(boolean enabled) {
         config().printerEnabled = enabled;
         if (!enabled) {
             paused = false;
+            lastNotified = null;
         }
         configManager.save();
     }
@@ -76,8 +106,57 @@ public final class PrinterController {
         setEnabled(false);
     }
 
-    /** Called when there is no world (main menu, disconnect). Never leaves a stale paused flag behind. */
+    /** Called when there is no world (main menu, disconnect). */
     public void onNoWorld() {
         paused = false;
+        nearbyMissing = 0;
+        tickCounter = 0;
+        lastNotified = null;
+        schematicName = "(none)";
+    }
+
+    /** Runs once per client tick. */
+    public void tick(Minecraft client) {
+        if (client.player == null || client.level == null) {
+            onNoWorld();
+            return;
+        }
+        if (!isEnabled()) {
+            return;
+        }
+
+        SchematicProvider.State state = schematics.state();
+        switch (state) {
+            case LITEMATICA_MISSING -> environmentStatus = Status.NO_LITEMATICA;
+            case NO_SCHEMATIC -> environmentStatus = Status.NO_SCHEMATIC;
+            case READY -> environmentStatus = Status.READY;
+        }
+
+        notifyOnce(client);
+
+        if (environmentStatus != Status.READY || paused) {
+            return;
+        }
+
+        if (++tickCounter % SCAN_INTERVAL_TICKS == 0) {
+            SchematicAccess access = schematics.accessOrNull();
+            if (access != null) {
+                schematicName = schematics.schematicName();
+                int radius = (int) Math.floor(config().placementRange);
+                nearbyMissing = SchematicScanner.countMissingNear(access, client.level, client.player.blockPosition(), radius);
+            }
+        }
+    }
+
+    private void notifyOnce(Minecraft client) {
+        if (environmentStatus == lastNotified) {
+            return;
+        }
+        lastNotified = environmentStatus;
+        if (environmentStatus == Status.NO_LITEMATICA) {
+            ChatUtil.info(client, "Litematica and MaLiLib are required for schematic printing, and they could not be used.");
+        } else if (environmentStatus == Status.NO_SCHEMATIC) {
+            ChatUtil.info(client, "No schematic is loaded. Load and place one with Litematica first.");
+        }
     }
 }
