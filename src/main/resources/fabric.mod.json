@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "lithium_fabric",
+  "id": "litematica_auto_printer",
   "version": "${version}",
   "name": "Lithium",
-  "description": "Lithium is free and open-source optimization mod for Minecraft which makes a wide range of performance improvements to the game.",
-  "authors": [ "Jellysquid" ],
+  "description": "Builds loaded Litematica schematics using normal, vanilla block interactions.",
+  "authors": [ "You" ],
   "license": "MIT",
   "icon": "assets/litematica_auto_printer/icon.png",
   "environment": "client",
