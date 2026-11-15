@@ -1,5 +1,6 @@
 package com.autoprinter.printer;
 
+import com.autoprinter.LitematicaAutoPrinter;
 import com.autoprinter.config.ConfigManager;
 import com.autoprinter.config.PrinterConfig;
 import com.autoprinter.integration.SchematicAccess;
@@ -8,7 +9,8 @@ import com.autoprinter.util.ChatUtil;
 import net.minecraft.client.Minecraft;
 
 /**
- * Owns the printer's state and drives the {@link PlacementEngine} once per client tick.
+ * Owns the printer's state and drives the {@link PlacementEngine} and the
+ * {@link SchematicProgressTracker} once per client tick.
  * Keybinds, the settings screen and the HUD all talk to this class.
  */
 public final class PrinterController {
@@ -19,6 +21,7 @@ public final class PrinterController {
         PRINTING("Printing"),
         NOTHING_TO_PLACE("Nothing left in reach"),
         OUT_OF_MATERIALS("Missing blocks in hotbar"),
+        COMPLETE("Schematic complete"),
         PAUSED("Paused"),
         NO_LITEMATICA("Litematica missing"),
         NO_SCHEMATIC("No schematic loaded");
@@ -37,6 +40,7 @@ public final class PrinterController {
     private final ConfigManager configManager;
     private final SchematicProvider schematics;
     private final PlacementEngine engine;
+    private final SchematicProgressTracker progress;
 
     private boolean paused;
     private Status environmentStatus = Status.READY;
@@ -48,6 +52,7 @@ public final class PrinterController {
         this.configManager = configManager;
         this.schematics = schematics;
         this.engine = new PlacementEngine(configManager);
+        this.progress = new SchematicProgressTracker(schematics);
     }
 
     private PrinterConfig config() {
@@ -76,6 +81,11 @@ public final class PrinterController {
         return engine.getStats();
     }
 
+    /** Totals and percentage for the whole schematic (see {@link ProgressSnapshot}). */
+    public ProgressSnapshot getProgress() {
+        return progress.getSnapshot();
+    }
+
     /** Missing blocks currently within reach of the player. */
     public int getRemainingInReach() {
         return engine.getCandidateCount();
@@ -96,6 +106,7 @@ public final class PrinterController {
             lastNotified = null;
             environmentStatus = Status.READY;
             engine.reset();
+            progress.reset();
         }
         configManager.save();
     }
@@ -126,9 +137,10 @@ public final class PrinterController {
         lastNotified = null;
         schematicName = "(none)";
         engine.reset();
+        progress.reset();
     }
 
-    /** Runs once per client tick. */
+    /** Runs once per client tick. Any unexpected error stops the printer instead of crashing the game. */
     public void tick(Minecraft client) {
         if (client.player == null || client.level == null) {
             onNoWorld();
@@ -137,7 +149,16 @@ public final class PrinterController {
         if (!isEnabled()) {
             return;
         }
+        try {
+            doTick(client);
+        } catch (LinkageError | RuntimeException e) {
+            LitematicaAutoPrinter.LOGGER.error("Printer stopped because of an internal error", e);
+            ChatUtil.info(client, "Printer stopped because of an internal error. Details are in the game log.");
+            stop();
+        }
+    }
 
+    private void doTick(Minecraft client) {
         SchematicProvider.State state = schematics.state();
         if (state == SchematicProvider.State.LITEMATICA_MISSING) {
             environmentStatus = Status.NO_LITEMATICA;
@@ -149,7 +170,9 @@ public final class PrinterController {
                 if (tickCounter++ % 20 == 0) {
                     schematicName = schematics.schematicName();
                 }
-                environmentStatus = toStatus(engine.tick(client, access));
+                progress.tick(client.level, client.player, access, config().scanBudgetPerTick);
+                PlacementEngine.Outcome outcome = engine.tick(client, access);
+                environmentStatus = progress.getSnapshot().isComplete() ? Status.COMPLETE : toStatus(outcome);
             }
         } else if (environmentStatus == Status.NO_LITEMATICA || environmentStatus == Status.NO_SCHEMATIC) {
             environmentStatus = Status.READY;
@@ -157,7 +180,9 @@ public final class PrinterController {
 
         notifyOnce(client);
 
-        if (environmentStatus == Status.OUT_OF_MATERIALS && config().stopWhenInventoryEmpty) {
+        if (environmentStatus == Status.COMPLETE && config().stopWhenSchematicComplete) {
+            stop();
+        } else if (environmentStatus == Status.OUT_OF_MATERIALS && config().stopWhenInventoryEmpty) {
             ChatUtil.info(client, "Out of blocks in the hotbar. Printer stopped.");
             stop();
         }
@@ -184,6 +209,8 @@ public final class PrinterController {
             case OUT_OF_MATERIALS -> ChatUtil.info(client,
                     "Missing in hotbar: " + String.join(", ", engine.getStats().getMissingItems())
                             + ". Put the blocks into your hotbar.");
+            case COMPLETE -> ChatUtil.info(client,
+                    "Schematic complete! " + progress.getSnapshot().total() + " blocks are in place.");
             default -> {
             }
         }

@@ -36,6 +36,10 @@ public class PrinterConfig {
     /** Turn the player's view only when a placement needs it. */
     public boolean automaticRotation = true;
 
+    // ---- Progress tracking ----
+    /** How many schematic positions are checked per tick when measuring progress (500-50000). */
+    public int scanBudgetPerTick = 6000;
+
     // ---- HUD ----
     public boolean hudEnabled = true;
     public int hudX = 6;
@@ -48,6 +52,7 @@ public class PrinterConfig {
         delayBetweenBlocksTicks = clamp(delayBetweenBlocksTicks, 0, 40);
         maxBlocksPerTick = clamp(maxBlocksPerTick, 1, 4);
         placementRange = Math.max(1.0, Math.min(placementRange, 6.0));
+        scanBudgetPerTick = clamp(scanBudgetPerTick, 500, 50000);
         hudX = clamp(hudX, 0, 10000);
         hudY = clamp(hudY, 0, 10000);
         hudScale = Math.max(0.5f, Math.min(hudScale, 3.0f));

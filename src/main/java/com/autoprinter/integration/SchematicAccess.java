@@ -19,4 +19,7 @@ public interface SchematicAccess {
 
     /** The block state the schematic wants at this position, or null if the schematic has nothing there. */
     BlockState getRequiredState(BlockPos pos);
+
+    /** Box around all placed schematics, or null if it cannot be determined. */
+    Bounds getBounds();
 }

@@ -46,6 +46,20 @@ public final class SchematicProvider {
         }
     }
 
+    /** Box around all placed schematics, or null if unknown. */
+    public Bounds boundsOrNull() {
+        SchematicAccess current = access();
+        if (current == null) {
+            return null;
+        }
+        try {
+            return current.getBounds();
+        } catch (LinkageError | RuntimeException e) {
+            markUnavailable("Litematica API call failed while reading the schematic bounds", e);
+            return null;
+        }
+    }
+
     /** Returns the access object for scanning, or null while Litematica is unavailable. */
     public SchematicAccess accessOrNull() {
         return access();

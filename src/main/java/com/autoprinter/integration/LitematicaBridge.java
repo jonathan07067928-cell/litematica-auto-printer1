@@ -43,4 +43,21 @@ public final class LitematicaBridge implements SchematicAccess {
         WorldSchematic schematicWorld = SchematicWorldHandler.getSchematicWorld();
         return schematicWorld == null ? null : schematicWorld.getBlockState(pos);
     }
+
+    @Override
+    public Bounds getBounds() {
+        List<SchematicPlacement> placements = DataManager.getSchematicPlacementManager().getAllSchematicsPlacements();
+        if (placements == null || placements.isEmpty()) {
+            return null;
+        }
+        Bounds union = null;
+        for (SchematicPlacement placement : placements) {
+            Bounds bounds = EnclosingBoxReader.read(placement);
+            if (bounds == null) {
+                return null; // one unreadable placement would make the totals wrong
+            }
+            union = union == null ? bounds : union.union(bounds);
+        }
+        return union;
+    }
 }
