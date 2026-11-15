@@ -17,8 +17,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Compact overlay with the printer's status and progress. It is only drawn
- * while the printer is switched on, and follows the position saved in the config.
+ * Compact overlay with the printer's status and progress. It is drawn while
+ * the printer is switched on (or while the settings screen previews it) and
+ * follows the position saved in the config.
  */
 public final class HudRenderer {
     private static final int PADDING = 4;
@@ -36,6 +37,8 @@ public final class HudRenderer {
     private static final int COLOR_WARN = 0xFFFFFF55;
     private static final int COLOR_BAD = 0xFFFF5555;
     private static final int COLOR_DONE = 0xFF55FFFF;
+
+    private static volatile boolean preview;
 
     private record Line(String text, int color) {
     }
@@ -55,9 +58,14 @@ public final class HudRenderer {
                 renderer::render);
     }
 
+    /** While true, the HUD is drawn even if the printer is off (used by the settings screen). */
+    public static void setPreview(boolean enabled) {
+        preview = enabled;
+    }
+
     private void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
         PrinterConfig config = configManager.get();
-        if (!config.hudEnabled || !printer.isEnabled()) {
+        if (!config.hudEnabled || (!printer.isEnabled() && !preview)) {
             return;
         }
         Font font = Minecraft.getInstance().font;
