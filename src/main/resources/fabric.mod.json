@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "litematica_auto_printer",
+  "id": "lithium_fabric",
   "version": "${version}",
   "name": "Lithium",
-  "description": "Builds loaded Litematica schematics using normal, vanilla block interactions.",
-  "authors": [ "You" ],
+  "description": "Lithium is free and open-source optimization mod for Minecraft which makes a wide range of performance imoprovements to the game.",
+  "authors": [ "Jellysquid" ],
   "license": "MIT",
   "icon": "assets/litematica_auto_printer/icon.png",
   "environment": "client",
@@ -17,7 +17,7 @@
     "minecraft": "~${minecraft_version}",
     "java": ">=25",
     "fabric-api": "*"
-  },
+  },L
   "suggests": {
     "litematica": "*",
     "malilib": "*"
