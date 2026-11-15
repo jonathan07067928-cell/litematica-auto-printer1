@@ -1,6 +1,7 @@
 package com.autoprinter;
 
 import com.autoprinter.config.ConfigManager;
+import com.autoprinter.hud.HudRenderer;
 import com.autoprinter.input.KeybindManager;
 import com.autoprinter.integration.SchematicProvider;
 import com.autoprinter.printer.PrinterController;
@@ -10,7 +11,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 
-/** Client entrypoint: wires config, Litematica access, printer state and keybinds together. */
+/** Client entrypoint: wires config, Litematica access, printer state, keybinds and the HUD together. */
 public class LitematicaAutoPrinterClient implements ClientModInitializer {
     private static ConfigManager configManager;
     private static SchematicProvider schematicProvider;
@@ -37,6 +38,8 @@ public class LitematicaAutoPrinterClient implements ClientModInitializer {
                 ChatUtil.info(Minecraft.getInstance(),
                         "The settings screen is coming in a later update. For now, edit config/"
                                 + LitematicaAutoPrinter.MOD_ID + ".json"));
+
+        HudRenderer.register(configManager, printerController);
 
         ClientTickEvents.END_CLIENT_TICK.register(printerController::tick);
 
